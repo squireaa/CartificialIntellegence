@@ -1,0 +1,77 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+from keras.models import load_model
+
+to_predict = ["145", "2.5", "2005", "0", "AIH_10", "Silver", "1"]
+
+X = pd.read_csv('X_data.csv')
+y = pd.read_csv('y_data.csv')
+X_csv = X
+y_csv = y
+
+mileage_scaler = StandardScaler()
+price_scaler = StandardScaler()
+model_year_scaler = StandardScaler()
+mileage = mileage_scaler.fit_transform(np.array(y[y.columns[1]]).reshape(-1, 1))
+price = price_scaler.fit_transform(np.array(y[y.columns[0]]).reshape(-1, 1))
+model_year = model_year_scaler.fit_transform(np.array(y[y.columns[4]]).reshape(-1, 1))
+ptrim = np.array(y[y.columns[2]])
+model = np.array(y[y.columns[5:412]])
+color = np.array(y[y.columns[412:-1]])
+
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+price_model = load_model('price_model.h5')
+color_model = load_model('color_model.h5')
+mileage_model = load_model('mileage_model.h5')
+model_model = load_model('model_model.h5')
+model_year_model = load_model('model_year_model.h5')
+ptrim_model = load_model('ptrim_model.h5')
+
+prediction_data = [0]*450
+model_col_num = X_csv.columns.get_loc(to_predict[4])
+prediction_data[model_col_num] = 1
+color_col_num = X_csv.columns.get_loc(to_predict[5])
+prediction_data[color_col_num] = 1
+prediction_data[-1] = int(to_predict[-1])
+prediction_data[0] = float(to_predict[0])
+prediction_data[1] = float(to_predict[1])
+prediction_data[2] = float(to_predict[2])
+prediction_data[3] = int(to_predict[3])
+
+model_year_prediction = model_year_model.predict(scaler.transform(pd.Series(prediction_data).values.reshape(1, -1)))
+model_year_prediction_unscaled = model_year_scaler.inverse_transform(model_year_prediction.reshape(-1, 1))[0][0]
+
+mileage_prediction = mileage_model.predict(scaler.transform(pd.Series(prediction_data).values.reshape(1, -1)))
+mileage_prediction_unscaled = mileage_scaler.inverse_transform(mileage_prediction.reshape(-1, 1))[0][0]
+
+price_prediction = price_model.predict(scaler.transform(pd.Series(prediction_data).values.reshape(1, -1)))
+price_prediction_unscaled = price_scaler.inverse_transform(price_prediction.reshape(-1, 1))[0][0]
+
+ptrim_prediction = ptrim_model.predict(scaler.transform(pd.Series(prediction_data).values.reshape(1, -1)))
+if ptrim_prediction >.5: ptrim_prediction = 1
+else: ptrim_prediction = 0
+
+
+model_prediction = pd.Series(prediction_data).values.reshape(1, -1)
+model_prediction = scaler.transform(model_prediction)
+model_classes = np.array(y_csv.columns[5:412])
+model_proba = model_model.predict(model_prediction)
+model_sorted_models = np.argsort(model_proba[0])[:-11:-1]
+model_top_ten_predictions = [str(model_classes[model_sorted_models[0]]), str(model_classes[model_sorted_models[1]]), str(model_classes[model_sorted_models[2]]), str(model_classes[model_sorted_models[3]]), str(model_classes[model_sorted_models[4]]), str(model_classes[model_sorted_models[5]]), str(model_classes[model_sorted_models[6]]), str(model_classes[model_sorted_models[7]]), str(model_classes[model_sorted_models[8]]), str(model_classes[model_sorted_models[9]])]
+
+color_prediction = pd.Series(prediction_data).values.reshape(1, -1)
+color_prediction = scaler.transform(color_prediction)
+color_classes = np.array(y_csv.columns[412:-1])
+color_proba = color_model.predict(color_prediction)
+color_sorted_models = np.argsort(color_proba[0])[:-11:-1]
+color_top_five_predictions = [str(color_classes[color_sorted_models[0]]), str(color_classes[color_sorted_models[1]]),str(color_classes[color_sorted_models[2]]), str(color_classes[color_sorted_models[3]]),str(color_classes[color_sorted_models[4]])]
+
+print(mileage_prediction_unscaled)
+print(model_year_prediction_unscaled)
+print(price_prediction_unscaled)
+print(ptrim_prediction)
+print(model_top_ten_predictions)
+print(color_top_five_predictions)
